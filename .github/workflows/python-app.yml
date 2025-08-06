@@ -1,0 +1,68 @@
+import streamlit as st
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+from transformers import pipeline
+
+# ----------------------------
+# 1. Load AI Models
+# ----------------------------
+@st.cache_resource
+def load_models():
+    embedder = SentenceTransformer('all-MiniLM-L6-v2')  # For converting text to vectors
+    chatbot = pipeline("text-generation", model="distilgpt2")  # For generating answers
+    return embedder, chatbot
+
+embedder, chatbot = load_models()
+
+# ----------------------------
+# 2. YOUR CUSTOM DATABASE
+# ----------------------------
+documents = [
+    "Darius Askari is a researcher in machine learning.",
+    "The AI Bot project was started in 2025.",
+    "AI databases use vector search to retrieve information.",
+    "GitHub Actions is used to automate Python testing and deployment.",
+    "Streamlit is a Python library used to build interactive web apps.",
+    "This chatbot is powered by sentence-transformers and transformers.",
+    "FAISS is used as the vector database to search text by meaning.",
+    "Python is commonly used for AI, automation, and web development.",
+]
+
+# ----------------------------
+# 3. Create FAISS Index
+# ----------------------------
+doc_embeddings = embedder.encode(documents)
+index = faiss.IndexFlatL2(doc_embeddings.shape[1])
+index.add(np.array(doc_embeddings))
+
+# ----------------------------
+# 4. Search and Generate Answer
+# ----------------------------
+def search_documents(query, k=2):
+    query_vec = embedder.encode([query])
+    distances, indices = index.search(np.array(query_vec), k)
+    return [documents[i] for i in indices[0]]
+
+def get_ai_response(query):
+    context = "\n".join(search_documents(query))
+    prompt = f"{context}\n\nQ: {query}\nA:"
+    result = chatbot(prompt, max_length=150, do_sample=True, temperature=0.7)
+    return result[0]['generated_text'].strip()
+
+# ----------------------------
+# 5. Streamlit Web App
+# ----------------------------
+st.set_page_config(page_title="AI Knowledge Chatbot", page_icon="🤖")
+st.title("🤖 Ask the AI")
+
+user_query = st.text_input("Ask a question based on your custom knowledge:")
+
+if user_query:
+    with st.spinner("Searching your AI database..."):
+        answer = get_ai_response(user_query)
+        st.success(answer)
+ax-line-length=127 --statistics
+    - name: Test with pytest
+      run: |
+        pytest
